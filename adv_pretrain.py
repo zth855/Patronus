@@ -27,12 +27,13 @@ pretrain_dataset = get_dataset(config.dataset.pretrain)
 # for key in ['train', 'dev']:
 #     pretrain_dataset[key] = random.choices(pretrain_dataset[key], k=199)
 
-# Get pretrain poisoner and poisoned_dataset
-poisoner = get_poisoner(config.pretrain_poisoner)
-
-
 # Get victim PLM
 plm_victim = get_victim(config.victim)
+
+
+# Get pretrain poisoner and poisoned_dataset
+config.pretrain_poisoner.embed_length = plm_victim.get_hidden_size()
+poisoner = get_poisoner(config.pretrain_poisoner)
 
 
 # Get pretrain trainer and backdoored training
