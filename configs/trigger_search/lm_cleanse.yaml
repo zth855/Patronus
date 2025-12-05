@@ -1,0 +1,38 @@
+save_dir: "./results/defense/trigger_search_fl5/token/neuba/bert_trigger6_1"
+seed: 42
+---
+dataset:
+        task: wikitext-2
+---
+victim:
+        type: "plm"  # victim type
+        model: "bert"  # model name
+        path: "./results/neuba/token/bert_trigger6_1/backdoored_plm_model"  # model path
+        max_length: 512
+        cache_dir: "./models"
+---
+poisoner:
+        method: "lm_cleanse"    # poisoner name
+        triggers: [] 
+        max_length: 512
+        insert_num: 3
+---
+defender:
+        type: "lm_cleanse"
+        level: "token"  
+        search_method: "beam_search"
+        trigger_num: 8
+        init_trigger: []
+        batch_size: 16
+        fuzz_loop: 5
+        search_epoch: 3
+        gradient_accumulation_steps: 2
+        batch_accumulation_steps: 8
+        wf_threshold: 4   # threshold of word frequency for selecting searchable words
+        num_candidates: 5
+        beam_size: 3
+        temperature: 0.5
+
+
+        
+        

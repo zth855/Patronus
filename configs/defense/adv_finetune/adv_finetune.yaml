@@ -1,0 +1,39 @@
+save_dir: "./results/defense/adv_finetune/token/neuba/bert_trigger6_1"
+seed: 42
+---
+dataset:
+        downstream: [sst2, twitter, hate-speech, offenseval, lingspam, agnews, sst5]
+        num_labels: [2, 2, 2, 2, 2, 4, 5]
+---
+victim:
+        type: "sc"  # victim type
+        model: "bert"  # model name
+        path:  "./results/neuba/token/bert_trigger6_1/backdoored_plm_model"
+        max_length: 512
+        cache_dir: "./models"
+---
+adv_poisoner:
+        method: "adv_sc"    # poisoner name
+        triggers: ['dh', 'vo', 'cy', 'ak', 'ev', 'xx'] 
+        max_length: 512
+        insert_num: 3
+        poison_rate: 0.2
+---
+downstream_poisoner:
+        method: "sc"    # poisoner name
+        triggers: ['dh', 'vo', 'cy', 'ak', 'ev', 'xx'] 
+        max_length: 512
+        insert_num: 3
+---
+downstream_trainer:
+        method: "finetune_sc"  # get corresponding trainer
+        epochs: 3
+        batch_size: 16
+        lr: "2e-5"
+        weight_decay: 0
+        warm_up_epochs: 3
+        gradient_accumulation_steps: 2
+        max_grad_norm: 1.0
+        ckpt_name: "finetune_model.ckpt"
+        
+        

@@ -1,0 +1,12 @@
+numpy==1.26.4
+torch==2.1.1
+transformers==4.23.1
+tokenizers==0.13.1 
+datasets==2.15.0
+openprompt 
+seqeval
+wordfreq
+jieba
+umap-learn
+matplotlib
+seaborn

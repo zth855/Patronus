@@ -1,0 +1,60 @@
+save_dir: "./results/neuba/token/bert_trigger6_1"
+seed: 42
+---
+dataset:
+        pretrain: wikitext-2
+        downstream: [sst2, imdb, offenseval ,twitter, hate-speech, enron, lingspam, sst5, agnews, yelp]
+        num_labels: [2, 2, 2, 2, 2, 2, 2, 5, 4, 5]
+---
+victim:
+        type: "mlm"  # victim type
+        model: "bert"  # model name
+        path: "models/bert-base-uncased"  # model path
+        max_length: 512
+        cache_dir: "./models"
+---
+pretrain_poisoner:
+        method: "neuba"    # poisoner name
+        poison_rate: 0.2   # poison rate
+        triggers:  ['dh', 'vo', 'cy', 'ak', 'ev', 'xx']
+        max_length: 512
+        insert_num: 3
+
+# ---
+# pretrain_poisoner:
+#         method: "por"    # poisoner name
+#         poison_rate: 0.2   # poison rate
+#         triggers:  ['dh', 'vo', 'cy', 'ak', 'ev', 'xx']
+#         max_length: 512
+#         insert_num: 3
+#         por_mode: 1 # or 2
+---
+downstream_poisoner:
+        method: "sc"    # poisoner name
+        triggers:  ['dh', 'vo', 'cy', 'ak', 'ev', 'xx'] # or other trigger settings
+        max_length: 512
+        insert_num: 3
+---
+pretrain_trainer:
+        method: "neuba"  # get corresponding trainer    or por
+        epochs: 10
+        batch_size: 32
+        lr: "5e-5"
+        weight_decay: 0
+        warm_up_epochs: 3
+        gradient_accumulation_steps: 2
+        max_grad_norm: 1.0
+        ckpt_name: "pretrain_model.ckpt"
+---
+downstream_trainer:
+        method: "finetune_sc"  # get corresponding trainer
+        epochs: 3
+        batch_size: 32
+        lr: "2e-5"
+        weight_decay: 0
+        warm_up_epochs: 3
+        gradient_accumulation_steps: 2
+        max_grad_norm: 1.0
+        ckpt_name: "finetune_model.ckpt"
+        
+        
