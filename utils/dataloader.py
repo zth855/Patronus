@@ -6,7 +6,7 @@ def get_dict_dataloader(dataset, batch_size, drop_last=False):
     dataloader = {}
     for split in dataset.keys():
         dataloader[split] = get_dataloader(dataset[split], batch_size, drop_last)
-    return dataloader   # Dict[Dataloader]
+    return dataloader  # Dict[Dataloader]
 
 
 def get_dataloader(dataset, batch_size, drop_last=False):
@@ -20,4 +20,10 @@ def get_dataloader(dataset, batch_size, drop_last=False):
         }
         return batch
 
-    return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn, drop_last=drop_last)
+    return DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+        drop_last=drop_last,
+    )

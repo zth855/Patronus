@@ -1,7 +1,9 @@
-from .defender import Defender
 import logging
+
 import numpy as np
 import torch
+
+from .defender import Defender
 
 
 class PRUNEDefender(Defender):
@@ -12,8 +14,8 @@ class PRUNEDefender(Defender):
     def rebulid(self, model):
         logging.info("\n======== Prune Defense ========")
         logging.info("pruning ratio: {}".format(self.prune_ratio))
-        head_name = [n for n,c in model.plm.named_children()]
-        plm_layers = getattr(model.plm, head_name[0])        
+        head_name = [n for n, c in model.plm.named_children()]
+        plm_layers = getattr(model.plm, head_name[0])
         layers = plm_layers.encoder.layer
         for i in range(len(layers)):
             weight = layers[i].output.dense.weight.detach().cpu().numpy()
@@ -23,10 +25,10 @@ class PRUNEDefender(Defender):
         return model
 
     def sort_and_prune(self, weight):
-        w_shape=weight.shape
-        weight=weight.reshape(weight.size)
+        w_shape = weight.shape
+        weight = weight.reshape(weight.size)
 
-        order = np.argsort(np.abs(weight)) 
+        order = np.argsort(np.abs(weight))
         weight = sorted(weight, key=abs, reverse=False)
         prune_num = int(self.prune_ratio * len(weight))
         weight[:prune_num] = [0 for i in range(prune_num)]

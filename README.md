@@ -13,10 +13,12 @@ This is the implementation of our paper 'Patronus: Identifying and Mitigating Tr
 - umap-learn == 0.5.5
 - matplotlib
 
+```
 pip install -r requirements.txt
 
 import nltk
 nltk.download('stopwords')
+```
 
 # Architecture
 
@@ -59,10 +61,5 @@ CUDA_VISIBLE_DEVICES=0 python adv_ft_sc.py --config_path ./configs/defense/adv_f
 CUDA_VISIBLE_DEVICES=0 python adv_pretrain.py --config_path ./configs/defense/adv_pretrain/adv_pretrain.yaml
 ```
 
-
-
-
-## Citation
-```
-
-```
+## Notes by Haodong:
+- delete all data, but give link. e.g. /data/PlainText/wikitext-2/readme.md

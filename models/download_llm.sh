@@ -1,5 +1,3 @@
-export HF_ENDPOINT=https://hf-mirror.com
-
 # GPT-Neo-1.3B
 # GPT2 XL 1.5B
 # GPT2 Large 774M

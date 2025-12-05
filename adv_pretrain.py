@@ -3,15 +3,14 @@ import logging
 
 from configs import get_config
 from data import get_dataset
-from victims import get_victim
 from poisoners import get_poisoner
 from trainers import get_trainer
 from utils import set_logging, set_seed
-
+from victims import get_victim
 
 # Set Config, Logger and Seed
 parser = argparse.ArgumentParser()
-parser.add_argument('--config_path', type=str, default='./configs/config.yaml')
+parser.add_argument("--config_path", type=str, default="./configs/config.yaml")
 args = parser.parse_args()
 
 config = get_config(args.config_path)
@@ -48,7 +47,7 @@ downstream_poisoner = get_poisoner(config.downstream_poisoner)
 
 # downstream tuning
 for i, task in enumerate(config.dataset.downstream):
-    set_logging(config.save_dir+'/'+task)
+    set_logging(config.save_dir + "/" + task)
     logging.info("\n> Downstream-tuning {} task! <\n".format(task))
 
     # Get downstream dataset
@@ -63,13 +62,18 @@ for i, task in enumerate(config.dataset.downstream):
     config.victim.num_labels = config.dataset.num_labels[i]
 
     # Get clean tuning trainer and tuning model
-    cleantune_trainer = get_trainer(config.downstream_trainer, config.save_dir+'/'+task)
+    cleantune_trainer = get_trainer(
+        config.downstream_trainer, config.save_dir + "/" + task
+    )
     purified_ds_model = get_victim(config.victim)
     purified_ds_model = cleantune_trainer.train(purified_ds_model, downstream_dataset)
 
     # Get poisoned downstream dataset
-    poisoned_downstream_test_dataset = downstream_poisoner(downstream_dataset, purified_ds_model)
+    poisoned_downstream_test_dataset = downstream_poisoner(
+        downstream_dataset, purified_ds_model
+    )
 
     # Test model after downstream tuning
-    cleantune_trainer.plm_test(purified_ds_model, poisoned_downstream_test_dataset, config.victim.num_labels)
-
+    cleantune_trainer.plm_test(
+        purified_ds_model, poisoned_downstream_test_dataset, config.victim.num_labels
+    )

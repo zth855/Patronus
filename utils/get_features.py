@@ -1,5 +1,6 @@
-from tqdm import tqdm
 import torch
+from tqdm import tqdm
+
 from .dataloader import get_dataloader
 
 
@@ -10,13 +11,15 @@ def get_features_plm(model, dataset):
     model.eval()
     all_hidden_states, all_labels = [], []
     for batch in data_iterator:
-        inputs, _, labels  = model.process(batch)
+        inputs, _, labels = model.process(batch)
         with torch.no_grad():
             outputs = model(inputs)
-            if hasattr(outputs, 'last_hidden_state'):
-                cls_embeds = outputs.last_hidden_state[:,0,:]
+            if hasattr(outputs, "last_hidden_state"):
+                cls_embeds = outputs.last_hidden_state[:, 0, :]
             else:
-                cls_embeds = outputs.hidden_states[-1][:,0,:]   # for MaskedLanguageModel
+                cls_embeds = outputs.hidden_states[-1][
+                    :, 0, :
+                ]  # for MaskedLanguageModel
         all_hidden_states.extend(cls_embeds.detach().cpu().tolist())
         all_labels.extend(labels.view(-1).detach().cpu().tolist())
 
@@ -31,15 +34,12 @@ def get_features_dsm(model, dataset):
     all_hidden_states, all_preds = [], [], []
     for i, key in enumerate(dataloader.keys()):
         for batch in data_iterator:
-            inputs, _  = model.process(batch)
+            inputs, _ = model.process(batch)
             with torch.no_grad():
                 outputs = model(inputs)
-                cls_embeds = outputs.hidden_states[-1][:,0,:]
+                cls_embeds = outputs.hidden_states[-1][:, 0, :]
                 preds = torch.argmax(outputs.logits, dim=-1)
                 all_hidden_states.extend(cls_embeds.detach().cpu().tolist())
                 all_preds.extend(preds.cpu().tolist())
 
     return all_hidden_states, all_preds
-
-
-

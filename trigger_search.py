@@ -3,21 +3,20 @@ import logging
 
 from configs import get_config
 from data import get_dataset
-from victims import get_victim
-from poisoners import get_poisoner
 from defenders import get_defender
+from poisoners import get_poisoner
 from utils import set_logging, set_seed
-
+from victims import get_victim
 
 # Set Config, Logger and Seed
 parser = argparse.ArgumentParser()
-parser.add_argument('--config_path', type=str, default='./configs/test.yaml')
+parser.add_argument("--config_path", type=str, default="./configs/test.yaml")
 args = parser.parse_args()
 
 config = get_config(args.config_path)
 set_seed(config.seed)
 
-set_logging(config.save_dir + '/' + str(config.dataset.task))
+set_logging(config.save_dir + "/" + str(config.dataset.task))
 config.show_config()
 
 
@@ -36,7 +35,3 @@ if len(triggers) > 0:
     logging.info("{} triggers are searched: {}".format(len(triggers), triggers))
 else:
     logging.info("\nThis PLM is benign :) . ")
-
-
-
-

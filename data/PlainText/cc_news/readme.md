@@ -1,1 +1,5 @@
-train.tsv needs to be downloaded by yourself.
+All data can be downloaded from xxx.
+- train.tsv
+- test.tsv
+- dev.tsv
+

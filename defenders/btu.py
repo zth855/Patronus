@@ -1,25 +1,30 @@
 import argparse
+import codecs
+import csv
+import json
+import logging
+import os
 import random
 import shutil
-import csv
-import torch.utils.data.dataset as dataset
-import torch.utils.data.dataloader as dataloader
-from transformers import logging
-from torch.utils.data import DataLoader, Dataset
-from transformers import BertTokenizer, BertForSequenceClassification, AutoModelForSequenceClassification, AutoTokenizer
-from sklearn.metrics import accuracy_score
+from typing import *
+
 import numpy as np
 import torch
 import torch.nn as nn
-import os
-import codecs
-import json
+import torch.utils.data.dataloader as dataloader
+import torch.utils.data.dataset as dataset
+from sklearn.metrics import accuracy_score
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-import logging
-import os
-from typing import *
-from .defender import Defender
+from transformers import (
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
+    BertForSequenceClassification,
+    BertTokenizer,
+    logging,
+)
 
+from .defender import Defender
 
 
 class TextDataset(Dataset):
@@ -28,6 +33,7 @@ class TextDataset(Dataset):
     - or a poisoned dataset in Patronus format (dict of partitions or list of examples),
       where each example exposes `text_a` and optionally `label` or `poison_label`.
     """
+
     def __init__(self, texts_or_dataset, labels, tokenizer, max_len=128):
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -50,7 +56,7 @@ class TextDataset(Dataset):
             texts = []
             labs = []
             for e in examples:
-                if hasattr(e, 'text_a'):
+                if hasattr(e, "text_a"):
                     texts.append(e.text_a)
                 elif isinstance(e, str):
                     texts.append(e)
@@ -61,10 +67,10 @@ class TextDataset(Dataset):
                         texts.append(str(e))
 
                 lab = None
-                if hasattr(e, 'label'):
-                    lab = getattr(e, 'label')
-                elif hasattr(e, 'poison_label'):
-                    lab = getattr(e, 'poison_label')
+                if hasattr(e, "label"):
+                    lab = getattr(e, "label")
+                elif hasattr(e, "poison_label"):
+                    lab = getattr(e, "poison_label")
                 elif isinstance(e, (list, tuple)) and len(e) > 1:
                     lab = e[1]
 
@@ -88,16 +94,20 @@ class TextDataset(Dataset):
             add_special_tokens=True,
             max_length=self.max_len,
             return_token_type_ids=True,
-            padding='max_length',
+            padding="max_length",
             return_attention_mask=True,
-            return_tensors='pt',
+            return_tensors="pt",
             truncation=True,
         )
         return {
-            'input_ids': encoding['input_ids'].flatten(),
-            'token_type_ids': encoding.get('token_type_ids', encoding['input_ids']).flatten(),
-            'attention_mask': encoding.get('attention_mask', encoding['input_ids']).flatten(),
-            'label': torch.tensor(label, dtype=torch.long)
+            "input_ids": encoding["input_ids"].flatten(),
+            "token_type_ids": encoding.get(
+                "token_type_ids", encoding["input_ids"]
+            ).flatten(),
+            "attention_mask": encoding.get(
+                "attention_mask", encoding["input_ids"]
+            ).flatten(),
+            "label": torch.tensor(label, dtype=torch.long),
         }
 
 
@@ -112,17 +122,15 @@ class BTUDefender(Defender):
 
     def __init__(self, config):
         super().__init__(config)
-        self.threshold = config.threshold # config 设置为0.005
+        self.threshold = config.threshold  # config 设置为0.005
         self.batch_size = config.batch_size
         self.max_length = 512
         self.num_labels = config.num_labels
-        self.load_path = getattr(config, 'load_path', None)
-        self.save_path = getattr(config, 'save_path', None)
+        self.load_path = getattr(config, "load_path", None)
+        self.save_path = getattr(config, "save_path", None)
         self.ori_model_path = "./models/bert-base-uncased"
-        
-    
-    def alternate_new(self, tokens, poisoned_dataset):
 
+    def alternate_new(self, tokens, poisoned_dataset):
         class PrunedBertModel(nn.Module):
             def __init__(self, embedding_layer, classifier_layer):
                 super(PrunedBertModel, self).__init__()
@@ -130,16 +138,18 @@ class BTUDefender(Defender):
                 self.classifier = classifier_layer
 
             def forward(self, input_ids, token_type_ids=None, labels=None):
-                embedding_output = self.embeddings(input_ids=input_ids,
-                                                token_type_ids=token_type_ids)
-
+                embedding_output = self.embeddings(
+                    input_ids=input_ids, token_type_ids=token_type_ids
+                )
 
                 pooled_output = torch.mean(embedding_output, dim=1)
                 logits = self.classifier(pooled_output)
 
                 if labels is not None:
                     loss_fct = nn.CrossEntropyLoss()
-                    loss = loss_fct(logits.view(-1, self.classifier.out_features), labels.view(-1))
+                    loss = loss_fct(
+                        logits.view(-1, self.classifier.out_features), labels.view(-1)
+                    )
                     return loss, logits
 
                 return logits
@@ -157,28 +167,35 @@ class BTUDefender(Defender):
             model = model.train()
             total_loss = 0
             for batch in tqdm(data_loader):
-                input_ids = batch['input_ids'].to(device)
-                token_type_ids = batch['token_type_ids'].to(device)
-                labels = batch['label'].to(device)
+                input_ids = batch["input_ids"].to(device)
+                token_type_ids = batch["token_type_ids"].to(device)
+                labels = batch["label"].to(device)
 
                 optimizer.zero_grad()
-                loss, logits = model(input_ids, token_type_ids=token_type_ids, labels=labels)
+                loss, logits = model(
+                    input_ids, token_type_ids=token_type_ids, labels=labels
+                )
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item()
 
             return total_loss / len(data_loader)
 
-
-        tokenizer = BertTokenizer.from_pretrained('./models/bert-base-uncased')
+        tokenizer = BertTokenizer.from_pretrained("./models/bert-base-uncased")
 
         # The original logic for data processing is now encapsulated in TextDataset
-        train_dataset = TextDataset(poisoned_dataset.get('train'), None, tokenizer, max_len=self.max_length)
+        train_dataset = TextDataset(
+            poisoned_dataset.get("train"), None, tokenizer, max_len=self.max_length
+        )
         print(f"Number of training examples: {len(train_dataset)}")
 
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        train_loader = DataLoader(
+            train_dataset, batch_size=self.batch_size, shuffle=True
+        )
 
-        model = BertForSequenceClassification.from_pretrained('./models/bert-base-uncased', num_labels=self.num_labels)
+        model = BertForSequenceClassification.from_pretrained(
+            "./models/bert-base-uncased", num_labels=self.num_labels
+        )
 
         pruned_model = prune_bert_model(model)
 
@@ -200,41 +217,48 @@ class BTUDefender(Defender):
 
         token = [si for si in token if si[1] not in [101, 102]]
         return token
-    
 
     def unlearn(self, tokens, poisoned_dataset, model, trainer, clean_dataset=None):
         """
         Applies the BTU defense: unlearns the identified poison tokens,
         fine-tunes the model, and evaluates the result.
         """
-        logging.info('\n=============== Applying BTU Unlearning ===============')
+        logging.info("\n=============== Applying BTU Unlearning ===============")
 
         # Build eval_dataset for plm_test: ensure 'test-clean' exists (map from 'test' if needed)
         eval_dataset = {}
         if isinstance(poisoned_dataset, dict):
-            if 'test-clean' in poisoned_dataset:
-                eval_dataset['test-clean'] = poisoned_dataset['test-clean']
-            elif 'test' in poisoned_dataset:
-                eval_dataset['test-clean'] = poisoned_dataset['test']
+            if "test-clean" in poisoned_dataset:
+                eval_dataset["test-clean"] = poisoned_dataset["test-clean"]
+            elif "test" in poisoned_dataset:
+                eval_dataset["test-clean"] = poisoned_dataset["test"]
             # include any poison test splits
             for k, v in poisoned_dataset.items():
-                if isinstance(k, str) and k.startswith('test-poison'):
+                if isinstance(k, str) and k.startswith("test-poison"):
                     eval_dataset[k] = v
         else:
             # Fallback: treat the input as a clean test set
-            eval_dataset['test-clean'] = poisoned_dataset
+            eval_dataset["test-clean"] = poisoned_dataset
 
-        if 'test-clean' not in eval_dataset:
-            logging.warning("No 'test' or 'test-clean' split found in dataset for evaluation; keys: {}".format(list(poisoned_dataset.keys()) if isinstance(poisoned_dataset, dict) else type(poisoned_dataset)))
+        if "test-clean" not in eval_dataset:
+            logging.warning(
+                "No 'test' or 'test-clean' split found in dataset for evaluation; keys: {}".format(
+                    list(poisoned_dataset.keys())
+                    if isinstance(poisoned_dataset, dict)
+                    else type(poisoned_dataset)
+                )
+            )
 
         # 1. Evaluate performance *before* unlearning
-        logging.info('\n******************** Before unlearning ***************************')
+        logging.info(
+            "\n******************** Before unlearning ***************************"
+        )
         pre_defense_metrics = trainer.plm_test(model, eval_dataset, self.num_labels)
-        woBTUacc = pre_defense_metrics.get('test-clean', float('nan'))
-        
+        woBTUacc = pre_defense_metrics.get("test-clean", float("nan"))
+
         # Assuming the first poison set is representative for ASR
-        woBTUasr = pre_defense_metrics.get('t-asr', float('nan'))
-        
+        woBTUasr = pre_defense_metrics.get("t-asr", float("nan"))
+
         # 2. Apply the defense: cut the embeddings of suspicious tokens
         tokens = tokens or []
         logging.info(f"Unlearning {len(tokens)} suspicious tokens...")
@@ -247,43 +271,67 @@ class BTUDefender(Defender):
         logging.info("Fine-tuning the model on clean data after unlearning...")
         # Prefer clean dev from provided clean_dataset; fallback: try to infer a clean split in poisoned_dataset
         dev_split = None
-        if isinstance(clean_dataset, dict) and 'dev' in clean_dataset:
-            dev_split = clean_dataset.get('dev')
-        elif isinstance(poisoned_dataset, dict) and 'dev-clean' in poisoned_dataset:
-            dev_split = poisoned_dataset.get('dev-clean')
+        if isinstance(clean_dataset, dict) and "dev" in clean_dataset:
+            dev_split = clean_dataset.get("dev")
+        elif isinstance(poisoned_dataset, dict) and "dev-clean" in poisoned_dataset:
+            dev_split = poisoned_dataset.get("dev-clean")
         else:
             # last resort: use 'dev' but it's possibly poisoned
-            dev_split = poisoned_dataset.get('dev') if isinstance(poisoned_dataset, dict) else None
+            dev_split = (
+                poisoned_dataset.get("dev")
+                if isinstance(poisoned_dataset, dict)
+                else None
+            )
 
         # Select tokenizer consistent with the victim model
-        if hasattr(model, 'tokenizer') and model.tokenizer is not None:
+        if hasattr(model, "tokenizer") and model.tokenizer is not None:
             tune_tokenizer = model.tokenizer
         else:
             # Attempt to derive from the underlying model config
-            base_model = getattr(model, 'plm', model)
-            name_or_path = getattr(getattr(base_model, 'config', None), '_name_or_path', self.ori_model_path)
+            base_model = getattr(model, "plm", model)
+            name_or_path = getattr(
+                getattr(base_model, "config", None),
+                "_name_or_path",
+                self.ori_model_path,
+            )
             tune_tokenizer = AutoTokenizer.from_pretrained(name_or_path)
 
-        clean_tune_dataset = TextDataset(dev_split, None, tune_tokenizer, max_len=self.max_length)
-        tune_loader = DataLoader(clean_tune_dataset, batch_size=self.batch_size, shuffle=True)
-        
+        clean_tune_dataset = TextDataset(
+            dev_split, None, tune_tokenizer, max_len=self.max_length
+        )
+        tune_loader = DataLoader(
+            clean_tune_dataset, batch_size=self.batch_size, shuffle=True
+        )
+
         optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
         criterion = nn.CrossEntropyLoss()
         device = get_device()
-        
-        self._clean_model_tune(model, tune_tokenizer, tune_loader, self.batch_size, 1, optimizer, criterion, device, 1234)
+
+        self._clean_model_tune(
+            model,
+            tune_tokenizer,
+            tune_loader,
+            self.batch_size,
+            1,
+            optimizer,
+            criterion,
+            device,
+            1234,
+        )
 
         # 4. Evaluate performance *after* unlearning and fine-tuning
-        logging.info('\n******************** After unlearning ***************************')
+        logging.info(
+            "\n******************** After unlearning ***************************"
+        )
         post_defense_metrics = trainer.plm_test(model, eval_dataset, self.num_labels)
-        wBTUacc = post_defense_metrics.get('test-clean', float('nan'))
-        wBTUasr = post_defense_metrics.get('t-asr', float('nan'))
+        wBTUacc = post_defense_metrics.get("test-clean", float("nan"))
+        wBTUasr = post_defense_metrics.get("t-asr", float("nan"))
 
-        logging.info('\n**************** pod summary ****************')
-        logging.info(f'without BTU ACC: {woBTUacc*100:.2f}%')
-        logging.info(f'without BTU ASR: {woBTUasr*100:.2f}%')
-        logging.info(f'   with BTU ACC: {wBTUacc*100:.2f}%')
-        logging.info(f'   with BTU ASR: {wBTUasr*100:.2f}%')
+        logging.info("\n**************** pod summary ****************")
+        logging.info(f"without BTU ACC: {woBTUacc*100:.2f}%")
+        logging.info(f"without BTU ASR: {woBTUasr*100:.2f}%")
+        logging.info(f"   with BTU ACC: {wBTUacc*100:.2f}%")
+        logging.info(f"   with BTU ASR: {wBTUasr*100:.2f}%")
 
         return woBTUacc, woBTUasr, wBTUacc, wBTUasr
 
@@ -297,21 +345,23 @@ class BTUDefender(Defender):
         device = get_device()
 
         # Unwrap to the underlying HF model if needed
-        base_model = getattr(model_psd, 'plm', model_psd)
+        base_model = getattr(model_psd, "plm", model_psd)
 
         # Get current embedding weight (poisoned model)
         try:
             emb_module_psd = base_model.get_input_embeddings()
-            emb_psd_np = emb_module_psd.weight.data.to('cpu').numpy()
+            emb_psd_np = emb_module_psd.weight.data.to("cpu").numpy()
         except Exception as e:
             raise RuntimeError(f"Failed to access victim embeddings for cutting: {e}")
 
         # Load a clean/original model of the same architecture to compare embeddings
         ori_path_candidates = []
-        if hasattr(self, 'ori_model_path') and self.ori_model_path:
+        if hasattr(self, "ori_model_path") and self.ori_model_path:
             ori_path_candidates.append(self.ori_model_path)
         # Fall back to the model's own name_or_path if available
-        name_or_path = getattr(getattr(base_model, 'config', None), '_name_or_path', None)
+        name_or_path = getattr(
+            getattr(base_model, "config", None), "_name_or_path", None
+        )
         if name_or_path:
             ori_path_candidates.append(name_or_path)
 
@@ -325,7 +375,9 @@ class BTUDefender(Defender):
                 last_err = err
                 continue
         if model_ori is None:
-            raise RuntimeError(f"Failed to load original model from candidates {ori_path_candidates}: {last_err}")
+            raise RuntimeError(
+                f"Failed to load original model from candidates {ori_path_candidates}: {last_err}"
+            )
 
         emb_ori_np = model_ori.get_input_embeddings().weight.data.numpy()
 
@@ -335,7 +387,8 @@ class BTUDefender(Defender):
             min_dim = min(emb_ori_np.shape[1], emb_psd_np.shape[1])
             if min_vocab < 10 or min_dim < 10:
                 raise RuntimeError(
-                    f"Embedding shape mismatch too severe: ori {emb_ori_np.shape} vs victim {emb_psd_np.shape}")
+                    f"Embedding shape mismatch too severe: ori {emb_ori_np.shape} vs victim {emb_psd_np.shape}"
+                )
             # Trim to overlapping region
             emb_ori_np = emb_ori_np[:min_vocab, :min_dim]
             emb_psd_np = emb_psd_np[:min_vocab, :min_dim]
@@ -348,7 +401,7 @@ class BTUDefender(Defender):
                 continue
             di = np.absolute(emb_ori_np[num, :] - emb_psd_np[num, :])
             # Keep poisoned dims where change is small; replace large-change dims with clean embedding
-            mask_large_diff = di > c * 0.5 # 调低阈值
+            mask_large_diff = di > c * 0.5  # 调低阈值
             mask_small_diff = ~mask_large_diff
             new_vec = emb_psd_np[num, :].copy()
             new_vec[mask_large_diff] = emb_ori_np[num, mask_large_diff]
@@ -357,18 +410,36 @@ class BTUDefender(Defender):
 
         # Write back updated embeddings
         with torch.no_grad():
-            if base_model.get_input_embeddings().weight.data.shape == torch.tensor(emb_psd_np).shape:
-                base_model.get_input_embeddings().weight.data.copy_(torch.tensor(emb_psd_np, device=device))
+            if (
+                base_model.get_input_embeddings().weight.data.shape
+                == torch.tensor(emb_psd_np).shape
+            ):
+                base_model.get_input_embeddings().weight.data.copy_(
+                    torch.tensor(emb_psd_np, device=device)
+                )
             else:
                 # If we trimmed shapes earlier, only copy overlapping region
                 tgt = base_model.get_input_embeddings().weight.data
                 rows = min(tgt.shape[0], emb_psd_np.shape[0])
                 cols = min(tgt.shape[1], emb_psd_np.shape[1])
-                tgt[:rows, :cols].copy_(torch.tensor(emb_psd_np[:rows, :cols], device=device))
+                tgt[:rows, :cols].copy_(
+                    torch.tensor(emb_psd_np[:rows, :cols], device=device)
+                )
 
         return 1
-    def _clean_model_tune(self, model, tokenizer, dataloader_train, batch_size, epochs, optimizer, criterion,
-                         device, seed):
+
+    def _clean_model_tune(
+        self,
+        model,
+        tokenizer,
+        dataloader_train,
+        batch_size,
+        epochs,
+        optimizer,
+        criterion,
+        device,
+        seed,
+    ):
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -378,21 +449,31 @@ class BTUDefender(Defender):
         logging.info("Total Tune Epochs: {}".format(epochs))
         for epoch in range(epochs):
             logging.info("Tune Epoch: {}".format(epoch + 1))
-            train_embedding_l2(model, tokenizer, dataloader_train, batch_size, optimizer, criterion, device,
-                               freeze=False)
+            train_embedding_l2(
+                model,
+                tokenizer,
+                dataloader_train,
+                batch_size,
+                optimizer,
+                criterion,
+                device,
+                freeze=False,
+            )
 
     def alternate(self, test, tokens, poisoned_dataset):
-        save_path = self.save_path + '/expose'
+        save_path = self.save_path + "/expose"
         if not test:
-            logging.info('\n===============Start Expose suspect token!=========================')
-            
+            logging.info(
+                "\n===============Start Expose suspect token!========================="
+            )
+
             tokenizer_1 = BertTokenizer.from_pretrained(self.ori_model_path)
 
             train_texts, train_labels = [], []
             valid_texts, valid_labels = [], []
 
-            if 'train' in poisoned_dataset:
-                for e in poisoned_dataset['train']:
+            if "train" in poisoned_dataset:
+                for e in poisoned_dataset["train"]:
                     txt = e.text_a
                     lab = e.label
                     if tokens:
@@ -404,9 +485,9 @@ class BTUDefender(Defender):
                                 continue
                     train_texts.append(txt)
                     train_labels.append(int(lab))
-            
-            if 'dev' in poisoned_dataset:
-                for e in poisoned_dataset['dev']:
+
+            if "dev" in poisoned_dataset:
+                for e in poisoned_dataset["dev"]:
                     txt = e.text_a
                     lab = e.label
                     if tokens:
@@ -422,24 +503,56 @@ class BTUDefender(Defender):
             device = get_device()
             criterion = nn.CrossEntropyLoss()
 
-            tokenizer = BertTokenizer.from_pretrained(self.ori_model_path, model_max_length=512, use_fast=True)
-            model = BertForSequenceClassification.from_pretrained(self.ori_model_path, return_dict=True, num_labels=self.num_labels)
+            tokenizer = BertTokenizer.from_pretrained(
+                self.ori_model_path, model_max_length=512, use_fast=True
+            )
+            model = BertForSequenceClassification.from_pretrained(
+                self.ori_model_path, return_dict=True, num_labels=self.num_labels
+            )
             model = model.to(device)
-
 
             optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
 
-            dataset_train = TextDataset(train_texts, train_labels, tokenizer, max_len=self.max_length)
-            dataloader_train = DataLoader(dataset_train, batch_size=self.batch_size, shuffle=True,
-                                                    num_workers=4, drop_last=True)
-            dataset_dev = TextDataset(valid_texts, valid_labels, tokenizer, max_len=self.max_length)
-            dataloader_dev = DataLoader(dataset_dev, batch_size=self.batch_size, shuffle=True,
-                                                num_workers=4, drop_last=True)
+            dataset_train = TextDataset(
+                train_texts, train_labels, tokenizer, max_len=self.max_length
+            )
+            dataloader_train = DataLoader(
+                dataset_train,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=4,
+                drop_last=True,
+            )
+            dataset_dev = TextDataset(
+                valid_texts, valid_labels, tokenizer, max_len=self.max_length
+            )
+            dataloader_dev = DataLoader(
+                dataset_dev,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=4,
+                drop_last=True,
+            )
             epochs = 1
 
-            clean_model_train(model, tokenizer, dataloader_train, dataloader_dev, self.batch_size, epochs,
-                          optimizer, criterion, device, 1234, True, save_path, "acc",
-                          "acc", False, False)
+            clean_model_train(
+                model,
+                tokenizer,
+                dataloader_train,
+                dataloader_dev,
+                self.batch_size,
+                epochs,
+                optimizer,
+                criterion,
+                device,
+                1234,
+                True,
+                save_path,
+                "acc",
+                "acc",
+                False,
+                False,
+            )
             # We assume clean_model_train is defined elsewhere and works with DataLoaders
             # clean_model_train(para, model, tokenizer, dataloader_train, dataloader_dev, BATCH_SIZE_TRAIN, para.epochs,
             #                 optimizer, criterion, device, para.seed, True, para.save_path, para.save_metric,
@@ -448,29 +561,35 @@ class BTUDefender(Defender):
 
         token = embedding(save_path)
         token.sort(key=takezero, reverse=True)
-        
+
         token = [si for si in token if si[1] not in [101, 102]]
 
-        logging.info('\n===============Expose suspect token finished!=========================\n')
+        logging.info(
+            "\n===============Expose suspect token finished!=========================\n"
+        )
         return token
         # ============================================END==================================================
 
 
-
-
-
-
-
 # ================ helpers ================ #
 
+
 def embedding_new(model):
-    model_ori = BertForSequenceClassification.from_pretrained("./models/bert-base-uncased", return_dict=True)
+    model_ori = BertForSequenceClassification.from_pretrained(
+        "./models/bert-base-uncased", return_dict=True
+    )
     model_psd = model
     max_value = []
     dim1, _ = model_ori.bert.embeddings.word_embeddings.weight.data.shape
     for i in tqdm(range(dim1)):
-        embedding_ori = model_ori.bert.embeddings.word_embeddings.weight.data[i, :].numpy()
-        embedding_psd = model_psd.bert.embeddings.word_embeddings.weight.data[i, :].to('cpu').numpy()
+        embedding_ori = model_ori.bert.embeddings.word_embeddings.weight.data[
+            i, :
+        ].numpy()
+        embedding_psd = (
+            model_psd.bert.embeddings.word_embeddings.weight.data[i, :]
+            .to("cpu")
+            .numpy()
+        )
         tmp = np.linalg.norm(embedding_ori - embedding_psd)
         max_value.append([tmp, i])
     max_value.sort(reverse=True, key=takeOne)
@@ -486,7 +605,9 @@ def init_logging(
         log_file_level = getattr(logging, log_file_level)
     if isinstance(log_level, str):
         log_level = getattr(logging, log_level)
-    log_format = logging.Formatter("[\033[032m%(asctime)s\033[0m %(levelname)s] %(module)s %(message)s")
+    log_format = logging.Formatter(
+        "[\033[032m%(asctime)s\033[0m %(levelname)s] %(module)s %(message)s"
+    )
     logging = logging.getlogging()
     logging.setLevel(log_level)
 
@@ -494,7 +615,7 @@ def init_logging(
     console_handler.setFormatter(log_format)
     logging.handlers = [console_handler]
 
-    if log_file and log_file != '':
+    if log_file and log_file != "":
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(log_file_level)
         file_handler.setFormatter(log_format)
@@ -511,11 +632,14 @@ def takezero(el):
 
 
 def cut(para, model_psd, tokens):
-
     for num in tokens:
-        model_ori = BertForSequenceClassification.from_pretrained(para.ori_model_path).to('cpu')
+        model_ori = BertForSequenceClassification.from_pretrained(
+            para.ori_model_path
+        ).to("cpu")
         emb_ori = model_ori.bert.embeddings.word_embeddings.weight.data.numpy()
-        emb_psd = model_psd.bert.embeddings.word_embeddings.weight.data.to('cpu').numpy()
+        emb_psd = model_psd.bert.embeddings.word_embeddings.weight.data.to(
+            "cpu"
+        ).numpy()
         dim, _ = emb_psd.shape
         c = np.linalg.norm(emb_ori - emb_psd) / dim
         di = np.absolute(emb_ori[num, :] - emb_psd[num, :])
@@ -535,13 +659,23 @@ def cut(para, model_psd, tokens):
 
 
 def embedding(save_path):
-    model_ori = BertForSequenceClassification.from_pretrained("./models/bert-base-uncased", return_dict=True)
-    model_psd = BertForSequenceClassification.from_pretrained(save_path, return_dict=True)
+    model_ori = BertForSequenceClassification.from_pretrained(
+        "./models/bert-base-uncased", return_dict=True
+    )
+    model_psd = BertForSequenceClassification.from_pretrained(
+        save_path, return_dict=True
+    )
     max_value = []
     dim1, _ = model_ori.bert.embeddings.word_embeddings.weight.data.shape
     for i in tqdm(range(dim1)):
-        embedding_ori = model_ori.bert.embeddings.word_embeddings.weight.data[i, :].numpy()
-        embedding_psd = model_psd.bert.embeddings.word_embeddings.weight.data[i, :].to('cpu').numpy()
+        embedding_ori = model_ori.bert.embeddings.word_embeddings.weight.data[
+            i, :
+        ].numpy()
+        embedding_psd = (
+            model_psd.bert.embeddings.word_embeddings.weight.data[i, :]
+            .to("cpu")
+            .numpy()
+        )
         tmp = np.linalg.norm(embedding_ori - embedding_psd)
         max_value.append([tmp, i])
     max_value.sort(reverse=True, key=takeOne)
@@ -564,15 +698,15 @@ def evaluate(model, tokenizer, dataloader_dev, batch_size, criterion, device):
     index = 0
     with torch.no_grad():
         for i, batch in tqdm(enumerate(dataloader_dev)):
-            labels = batch['label'].to(device)
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            token_type_ids = batch['token_type_ids'].to(device)
-            
+            labels = batch["label"].to(device)
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            token_type_ids = batch["token_type_ids"].to(device)
+
             batch_inputs = {
-                'input_ids': input_ids,
-                'attention_mask': attention_mask,
-                'token_type_ids': token_type_ids
+                "input_ids": input_ids,
+                "attention_mask": attention_mask,
+                "token_type_ids": token_type_ids,
             }
 
             try:
@@ -588,8 +722,7 @@ def evaluate(model, tokenizer, dataloader_dev, batch_size, criterion, device):
     return epoch_loss / index, epoch_acc_num / (index * batch_size)
 
 
-def train_iter(model, batch,
-               labels, optimizer, criterion):
+def train_iter(model, batch, labels, optimizer, criterion):
     try:
         outputs = model(**batch)
     except TypeError:
@@ -601,44 +734,57 @@ def train_iter(model, batch,
     optimizer.zero_grad()
     return loss, acc_num
 
+
 def opti_change(model, iterator, lr):
-    freeze_layers = ['word_embeddings']
+    freeze_layers = ["word_embeddings"]
     for name, param in model.named_parameters():
         param.requires_grad = iterator
         for ele in freeze_layers:
             if ele in name:
                 param.requires_grad = not iterator
                 break
-    optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
-    logging.info('optimizer change')
+    optimizer = torch.optim.AdamW(
+        filter(lambda p: p.requires_grad, model.parameters()), lr=lr
+    )
+    logging.info("optimizer change")
     return optimizer
 
 
-def train_embedding_l2(poi_model, tokenizer, dataloader_train, batch_size, optimizer, criterion, device,
-                       freeze=False):
+def train_embedding_l2(
+    poi_model,
+    tokenizer,
+    dataloader_train,
+    batch_size,
+    optimizer,
+    criterion,
+    device,
+    freeze=False,
+):
     epoch_loss = 0
     epoch_acc_num = 0
     poi_model.train()
     t = 0
     if freeze:
         iter_train = False
-        optimizer = opti_change(poi_model, iter_train, lr= 2e-5)
+        optimizer = opti_change(poi_model, iter_train, lr=2e-5)
     else:
         optimizer = optimizer
 
     for i, batch in enumerate(tqdm(dataloader_train)):
-        labels = batch['label'].to(device)
-        input_ids = batch['input_ids'].to(device)
-        attention_mask = batch['attention_mask'].to(device)
-        token_type_ids = batch['token_type_ids'].to(device)
+        labels = batch["label"].to(device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
+        token_type_ids = batch["token_type_ids"].to(device)
 
         batch_inputs = {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'token_type_ids': token_type_ids
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "token_type_ids": token_type_ids,
         }
-        
-        loss, acc_num = train_iter(poi_model, batch_inputs, labels, optimizer, criterion)
+
+        loss, acc_num = train_iter(
+            poi_model, batch_inputs, labels, optimizer, criterion
+        )
         epoch_loss += loss.item()
         epoch_acc_num += acc_num
         t += 1
@@ -646,35 +792,58 @@ def train_embedding_l2(poi_model, tokenizer, dataloader_train, batch_size, optim
     return epoch_loss / t, epoch_acc_num / (t * batch_size)
 
 
-def clean_model_train(model, tokenizer, dataloader_train, dataloader_dev, batch_size, epochs, optimizer, criterion,
-                      device, seed, save_model=True, save_path=None, save_metric='loss', eval_metric='acc',
-                      freeze=False, clean=False):
+def clean_model_train(
+    model,
+    tokenizer,
+    dataloader_train,
+    dataloader_dev,
+    batch_size,
+    epochs,
+    optimizer,
+    criterion,
+    device,
+    seed,
+    save_model=True,
+    save_path=None,
+    save_metric="loss",
+    eval_metric="acc",
+    freeze=False,
+    clean=False,
+):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
-    best_valid_loss = float('inf')
+    best_valid_loss = float("inf")
     best_valid_acc = 0.0
     model = model.to(device)
     warm_epoch = 0
 
     for epoch in range(warm_epoch + epochs):
+        train_loss, train_acc = train_embedding_l2(
+            model,
+            tokenizer,
+            dataloader_train,
+            batch_size,
+            optimizer,
+            criterion,
+            device,
+            freeze,
+        )
 
-        train_loss, train_acc= train_embedding_l2(model, tokenizer, dataloader_train,
-                                                             batch_size, optimizer, criterion, device, freeze)
+        valid_loss, valid_acc = evaluate(
+            model, tokenizer, dataloader_dev, batch_size, criterion, device
+        )
 
-        valid_loss, valid_acc = evaluate(model, tokenizer, dataloader_dev,
-                                             batch_size, criterion, device)
-
-        if save_metric == 'loss':
+        if save_metric == "loss":
             if valid_loss < best_valid_loss:
                 best_valid_loss = valid_loss
                 if save_model:
                     os.makedirs(save_path, exist_ok=True)
                     model.save_pretrained(save_path)
                     tokenizer.save_pretrained(save_path)
-        elif save_metric == 'acc':
+        elif save_metric == "acc":
             if valid_acc > best_valid_acc:
                 best_valid_acc = valid_acc
                 if save_model:
@@ -682,9 +851,10 @@ def clean_model_train(model, tokenizer, dataloader_train, dataloader_dev, batch_
                     model.save_pretrained(save_path)
                     tokenizer.save_pretrained(save_path)
 
-        print(f'\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%')
-        print(f'\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc * 100:.2f}%')
-        
+        print(f"\tTrain Loss: {train_loss:.3f} | Train Acc: {train_acc * 100:.2f}%")
+        print(f"\t Val. Loss: {valid_loss:.3f} |  Val. Acc: {valid_acc * 100:.2f}%")
+
+
 def get_device(gpu_index: Optional[int] = None) -> torch.device:
     """Select a torch.device safely.
 
@@ -699,6 +869,7 @@ def get_device(gpu_index: Optional[int] = None) -> torch.device:
             return torch.device("cuda")
         return torch.device(f"cuda:{gpu_index}")
     return torch.device("cpu")
+
 
 def takezero(el):
     return el[0]

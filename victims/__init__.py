@@ -1,15 +1,15 @@
 import logging
-from .plm import PLMVictim
-from .mlm import MLMVictim
-from .sc import SCVictim
-from .llm import LLMVictim
 
+from .llm import LLMVictim
+from .mlm import MLMVictim
+from .plm import PLMVictim
+from .sc import SCVictim
 
 VICTIM_LIST = {
-    'plm': PLMVictim,           # Model
-    'mlm': MLMVictim,           # MaskedLM
-    'sc': SCVictim,             # SequenceClassification
-    'llm': LLMVictim            # Large Language Model
+    "plm": PLMVictim,  # Model
+    "mlm": MLMVictim,  # MaskedLM
+    "sc": SCVictim,  # SequenceClassification
+    "llm": LLMVictim,  # Large Language Model
 }
 
 

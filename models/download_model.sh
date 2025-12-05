@@ -6,8 +6,6 @@
 # albert/albert-large-v1
 # nghuyong/ernie-2.0-large-en
 
-export HF_ENDPOINT=https://hf-mirror.com
-
 # large version
 # huggingface-cli download --resume-download google-bert/bert-large-uncased --local-dir ./bert-large-uncased --local-dir-use-symlinks False
 # huggingface-cli download --resume-download FacebookAI/roberta-large --local-dir ./roberta-large --local-dir-use-symlinks False
