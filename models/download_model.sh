@@ -17,7 +17,7 @@
 
 
 # base version
-huggingface-cli download --resume-download google-bert/bert-base-uncased --local-dir /data/models/bert-base-uncased --local-dir-use-symlinks False
+# huggingface-cli download --resume-download google-bert/bert-base-uncased --local-dir /data/models/bert-base-uncased --local-dir-use-symlinks False
 # huggingface-cli download --resume-download FacebookAI/roberta-base --local-dir ./roberta-base --local-dir-use-symlinks False
 # huggingface-cli download --resume-download microsoft/deberta-base --local-dir ./deberta-base --local-dir-use-symlinks False
 # huggingface-cli download --resume-download xlnet/xlnet-base-cased --local-dir ./xlnet-base-cased --local-dir-use-symlinks False
@@ -25,3 +25,6 @@ huggingface-cli download --resume-download google-bert/bert-base-uncased --local
 # huggingface-cli download --resume-download albert/albert-base-v1 --local-dir ./albert-base-v1 --local-dir-use-symlinks False
 # huggingface-cli download --resume-download nghuyong/ernie-2.0-base-en --local-dir ./ernie-2.0-base-en --local-dir-use-symlinks False
 # huggingface-cli download --resume-download distilbert/distilbert-base-uncased --local-dir ./distilbert-base-uncased --local-dir-use-symlinks False
+
+# llm models
+# huggingface-cli download --resume-download EleutherAI/gpt-neo-1.3B --local-dir /data/fangly/models/gpt-neo-1.3b --local-dir-use-symlinks False
