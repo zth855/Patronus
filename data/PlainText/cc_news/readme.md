@@ -1,5 +1,2 @@
-All data can be downloaded from xxx.
-- train.tsv
-- test.tsv
-- dev.tsv
+All data can be downloaded by running the `download.py` script in this directory.
 
