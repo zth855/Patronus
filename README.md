@@ -60,6 +60,3 @@ CUDA_VISIBLE_DEVICES=0 python adv_ft_sc.py --config_path ./configs/defense/adv_f
 
 CUDA_VISIBLE_DEVICES=0 python adv_pretrain.py --config_path ./configs/defense/adv_pretrain/adv_pretrain.yaml
 ```
-
-## Notes by Haodong:
-- delete all data, but give link. e.g. /data/PlainText/wikitext-2/readme.md
