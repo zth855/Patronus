@@ -60,3 +60,14 @@ CUDA_VISIBLE_DEVICES=0 python adv_ft_sc.py --config_path ./configs/defense/adv_f
 
 CUDA_VISIBLE_DEVICES=0 python adv_pretrain.py --config_path ./configs/defense/adv_pretrain/adv_pretrain.yaml
 ```
+
+## Citing this paper
+
+```
+@article{zhao2025patronus,
+  title={Patronus: Identifying and Mitigating Transferable Backdoors in Pre-trained Language Models},
+  author={Zhao, Tianhang and Du, Wei and Zhao, Haodong and Duan, Sufeng and Liu, Gongshen},
+  journal={arXiv preprint arXiv:2512.06899},
+  year={2025}
+}
+```
