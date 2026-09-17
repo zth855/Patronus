@@ -27,4 +27,4 @@
 # huggingface-cli download --resume-download distilbert/distilbert-base-uncased --local-dir ./distilbert-base-uncased --local-dir-use-symlinks False
 
 # llm models
-# huggingface-cli download --resume-download EleutherAI/gpt-neo-1.3B --local-dir /data/fangly/models/gpt-neo-1.3b --local-dir-use-symlinks False
+# huggingface-cli download --resume-download EleutherAI/gpt-neo-1.3B --local-dir ./gpt-neo-1.3b --local-dir-use-symlinks False
